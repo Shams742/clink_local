@@ -67,6 +67,28 @@
                 </div>
             </div>
 
+            {% if match_confidence %}
+            <div class="triage-info-item" style="grid-column: 1 / -1;margin-top:var(--space-md);padding:var(--space-md);background:var(--gray-50);border-radius:var(--radius-md);">
+                <div class="label">Symptom Match Confidence</div>
+                <div class="value" style="font-size:1.1rem;font-weight:700;">
+                    {{ match_confidence.coveragePercent }}%
+                    <span style="font-weight:400;font-size:0.85rem;color:var(--gray-500);">
+                        ({{ match_confidence.matchedCount }} of {{ match_confidence.totalTypical }} typical symptoms for this condition matched)
+                    </span>
+                </div>
+                {% if match_confidence.missingSymptoms %}
+                <p style="margin-top:6px;font-size:0.82rem;color:var(--gray-500);">
+                    Typical symptoms you didn't report:
+                    {% for s in match_confidence.missingSymptoms %}<span class="symptom-tag">{{ s.replace('_', ' ').title() }}</span>{% endfor %}
+                </p>
+                {% endif %}
+                <p style="margin-top:6px;font-size:0.75rem;color:var(--gray-400);">
+                    Measures how closely your reported symptoms match a known presentation of this condition —
+                    a lower score means fewer typical symptoms were reported, so treat the prediction with more caution.
+                </p>
+            </div>
+            {% endif %}
+
             <!-- Actions -->
             <div style="margin-top:var(--space-xl);display:flex;gap:var(--space-md);justify-content:center;flex-wrap:wrap;">
                 <a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>

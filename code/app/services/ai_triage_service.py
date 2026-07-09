@@ -133,6 +133,19 @@ class AITriageService:
         joblib.dump(le, cls._get_encoder_path())
         joblib.dump(symptom_cols, os.path.join(cls._model_dir, 'feature_names.pkl'))
 
+        # 1b. Build per-disease known symptom profiles (for per-prediction match confidence)
+        disease_profiles = {}
+        for _, row in df.iterrows():
+            disease = str(row['Disease']).strip()
+            symptoms = frozenset(
+                re.sub(r'\s+', '_', str(v).strip().lower())
+                for v in row[1:].dropna()
+                if str(v).strip().lower() != 'nan'
+            )
+            disease_profiles.setdefault(disease, set()).add(symptoms)
+        disease_profiles = {k: list(v) for k, v in disease_profiles.items()}
+        joblib.dump(disease_profiles, os.path.join(cls._model_dir, 'disease_symptom_profiles.pkl'))
+
         # 2. Parse Descriptions
         descriptions = {}
         if os.path.exists(desc_path):
@@ -452,14 +465,60 @@ class AITriageService:
         specialist = SPECIALIST_MAP.get(disease, 'General Practitioner')
         desc = descriptions.get(disease, 'No description available.')
         precs = precautions.get(disease, [])
+        match_confidence = cls.get_match_confidence(symptoms_list, disease)
 
         return {
             'urgencyLevel': urgency,
             'recommendedSpecialist': specialist,
             'predictedCondition': disease,
             'description': desc,
-            'precautions': precs
+            'precautions': precs,
+            'matchConfidence': match_confidence,
         }
+
+    @classmethod
+    def get_match_confidence(cls, symptoms_list, predicted_condition):
+        """
+        Per-prediction confidence signal: how many of the predicted condition's
+        known/typical symptoms (from the training data) did the patient
+        actually report?
+
+        This is deliberately NOT sklearn's predict_proba() — that always
+        reports ~100% here because the tree perfectly memorizes this clean,
+        fully-separable dataset (see evaluate_model()), so it's not an
+        honest per-case signal. This instead picks the closest-matching known
+        symptom presentation for the predicted condition and reports the
+        overlap, so a sparse or unusual symptom report visibly scores lower.
+        """
+        profiles_path = os.path.join(cls._model_dir, 'disease_symptom_profiles.pkl')
+        if not os.path.exists(profiles_path):
+            return None
+
+        profiles = joblib.load(profiles_path)
+        candidates = profiles.get(predicted_condition, [])
+        if not candidates:
+            return None
+
+        reported = {re.sub(r'\s+', '_', s.strip().lower()) for s in symptoms_list}
+
+        best = None
+        for profile in candidates:
+            profile_set = set(profile)
+            matched = reported & profile_set
+            if best is None or len(matched) > best['matchedCount']:
+                best = {
+                    'matchedCount': len(matched),
+                    'totalTypical': len(profile_set),
+                    'matchedSymptoms': sorted(matched),
+                    'missingSymptoms': sorted(profile_set - reported),
+                    'extraSymptoms': sorted(reported - profile_set),
+                }
+
+        if best is None or best['totalTypical'] == 0:
+            return None
+
+        best['coveragePercent'] = round(best['matchedCount'] / best['totalTypical'] * 100, 1)
+        return best
 
     @classmethod
     def get_symptom_list(cls):

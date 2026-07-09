@@ -43,7 +43,14 @@ def triage_result_page(record_id):
     record = PatientService.get_record(record_id, current_user.id)
     if not record:
         return render_template('errors/404.html'), 404
-    return render_template('patient/triage_result.html', record=record)
+
+    match_confidence = None
+    if record.analysis_status == 'completed' and record.predicted_condition:
+        from app.services.ai_triage_service import AITriageService
+        symptoms_list = record.symptoms_list.split(',') if record.symptoms_list else []
+        match_confidence = AITriageService.get_match_confidence(symptoms_list, record.predicted_condition)
+
+    return render_template('patient/triage_result.html', record=record, match_confidence=match_confidence)
 
 
 @patient_bp.route('/patient/book-appointment/<int:record_id>')
