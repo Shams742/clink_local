@@ -173,6 +173,89 @@ class AITriageService:
         return model, le
 
     @classmethod
+    def evaluate_model(cls):
+        """
+        Measure model accuracy on demand, from scratch, every call.
+
+        Reports two figures:
+        - Held-out 20% test split accuracy/precision/recall/F1 (same split
+          method used to produce the persisted model.pkl).
+        - Stratified 5-fold cross-validation accuracy (mean +/- std) — the
+          model is retrained and tested 5 times on different splits, so no
+          single "lucky" split can inflate the score. This is the number
+          that should be quoted as "the" accuracy.
+
+        Does not touch or overwrite the persisted model.pkl.
+        """
+        from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+        data2_dir = os.path.join(cls._model_dir, 'data2')
+        dataset_path = os.path.join(data2_dir, 'dataset.csv')
+        if not os.path.exists(dataset_path):
+            return None
+
+        df = pd.read_csv(dataset_path)
+
+        symptoms_set = set()
+        for col in df.columns[1:]:
+            for val in df[col].dropna().unique():
+                val_str = str(val).strip()
+                if val_str and val_str.lower() != 'nan':
+                    symptoms_set.add(re.sub(r'\s+', '_', val_str.lower()))
+        symptom_cols = sorted(symptoms_set)
+
+        encoded_data = []
+        for _, row in df.iterrows():
+            row_symptoms = []
+            for val in row[1:].dropna():
+                val_str = str(val).strip()
+                if val_str and val_str.lower() != 'nan':
+                    row_symptoms.append(re.sub(r'\s+', '_', val_str.lower()))
+            encoded_row = {s: 1 if s in row_symptoms else 0 for s in symptom_cols}
+            encoded_row['prognosis'] = str(row['Disease']).strip()
+            encoded_data.append(encoded_row)
+
+        processed_df = pd.DataFrame(encoded_data)
+        X = processed_df[symptom_cols].values
+        y_raw = processed_df['prognosis'].values
+
+        le = LabelEncoder()
+        y = le.fit_transform(y_raw)
+
+        # 1. Held-out 20% test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        holdout_model = DecisionTreeClassifier(random_state=42)
+        holdout_model.fit(X_train, y_train)
+        y_pred = holdout_model.predict(X_test)
+
+        holdout_accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+        recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+        f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
+
+        # 2. Stratified 5-fold cross-validation (the defensible headline number)
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        cv_scores = cross_val_score(
+            DecisionTreeClassifier(random_state=42), X, y, cv=cv, scoring='accuracy'
+        )
+
+        return {
+            'holdoutAccuracy': round(holdout_accuracy * 100, 2),
+            'precision': round(precision * 100, 2),
+            'recall': round(recall * 100, 2),
+            'f1Score': round(f1 * 100, 2),
+            'cvMean': round(cv_scores.mean() * 100, 2),
+            'cvStd': round(cv_scores.std() * 100, 2),
+            'cvFolds': [round(s * 100, 2) for s in cv_scores.tolist()],
+            'sampleCount': len(df),
+            'classCount': len(le.classes_),
+            'featureCount': len(symptom_cols),
+        }
+
+    @classmethod
     def load_model(cls):
         """Load the trained model from disk."""
         model_path = cls._get_model_path()
