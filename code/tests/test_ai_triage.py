@@ -3,7 +3,7 @@ CLINK Test Suite — TC003/TC004/TC005: AI Triage Service Unit Tests
 Direct tests of the AI model prediction pipeline.
 """
 import pytest
-from app.services.ai_triage_service import AITriageService, SYMPTOM_LIST
+from app.services.ai_triage_service import AITriageService
 
 
 class TestAITriageService:
