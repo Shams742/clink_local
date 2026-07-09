@@ -66,10 +66,7 @@ def notifications_page():
 def reports_page():
     stats = AdminService.get_dashboard_stats()
     chart_data = AdminService.get_reports_data()
-    model_accuracy = AdminService.get_model_accuracy()
-    model_robustness = AdminService.get_model_robustness()
-    return render_template('admin/reports.html', stats=stats, chart_data=chart_data,
-                           model_accuracy=model_accuracy, model_robustness=model_robustness)
+    return render_template('admin/reports.html', stats=stats, chart_data=chart_data)
 
 
 @admin_bp.route('/admin/audit-log')
