@@ -196,20 +196,14 @@ def update_patient_profile():
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'error': 'Invalid request data.'}), 400
-        
-    current_password = data.get('current_password', '')
-    if not current_password:
-        return jsonify({'success': False, 'error': 'Current password is required to save changes.'}), 400
-        
+
     from app.services.auth_service import AuthService
-    if not AuthService.check_password(current_password, current_user.password):
-        return jsonify({'success': False, 'error': 'Incorrect current password.'}), 400
-        
-    name = data.get('name', '').strip()
-    phone = data.get('phone', '').strip()
-    gender = data.get('gender', '').strip()
-    dob = data.get('dob', '').strip()
-    new_password = data.get('new_password', '').strip()
+
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    gender = (data.get('gender') or '').strip()
+    dob = (data.get('dob') or '').strip()
+    new_password = (data.get('new_password') or '').strip()
     
     if name:
         valid, err = AuthService.validate_name(name)

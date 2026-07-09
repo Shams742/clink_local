@@ -54,14 +54,6 @@
                 <input type="password" id="confirm_password" class="form-input" placeholder="Confirm new password">
             </div>
 
-            <hr style="border: 0; border-top: 1px solid var(--gray-100); margin: var(--space-lg) 0;">
-            <h4 style="margin-bottom: var(--space-md); color: var(--gray-700); border-left: 3px solid var(--primary-500); padding-left: 8px;">Authorization Required</h4>
-
-            <div class="form-group mb-3">
-                <label class="form-label" for="current_password" style="font-weight: 600;">Current Password</label>
-                <input type="password" id="current_password" class="form-input" placeholder="Enter current password to save changes" required>
-            </div>
-
             <button type="submit" class="btn btn-primary btn-block btn-lg" id="saveProfileBtn">
                 💾 Save Changes
             </button>
@@ -96,14 +88,12 @@
                 gender: document.getElementById('gender').value,
                 dob: document.getElementById('dob').value,
                 new_password: newPassword || null,
-                current_password: document.getElementById('current_password').value
             });
-            
+
             if (data.success) {
                 Toast.success(data.message);
                 document.getElementById('new_password').value = '';
                 document.getElementById('confirm_password').value = '';
-                document.getElementById('current_password').value = '';
                 
                 // Update username in sidebar if changed
                 const sidebarName = document.querySelector('.sidebar-user .user-name');
