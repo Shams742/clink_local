@@ -6,13 +6,16 @@
     <meta name="description" content="Create a patient account on CLINK — Smart Outpatient Triage and Scheduling System">
     <title>Register — CLINK</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
 </head>
 <body>
     <div class="auth-page">
         <div class="auth-card">
             <div class="brand">
-                <h1>CLINK</h1>
-                <p>Smart Outpatient Triage &amp; Scheduling</p>
+                <img src="{{ url_for('static', filename='img/logo-full.png') }}" alt="CLINK — Smart Outpatient Triage & Scheduling System" class="brand-logo">
             </div>
 
             <h2>Create Your Account</h2>
