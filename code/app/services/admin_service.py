@@ -144,6 +144,12 @@ class AdminService:
         return AITriageService.evaluate_model()
 
     @staticmethod
+    def get_model_robustness():
+        """Live-measured accuracy degradation under noisy input (see AITriageService.evaluate_robustness)."""
+        from app.services.ai_triage_service import AITriageService
+        return AITriageService.evaluate_robustness()
+
+    @staticmethod
     def get_reports_data():
         """Get aggregated data for reports & charts."""
         from sqlalchemy import func

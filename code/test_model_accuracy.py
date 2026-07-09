@@ -32,3 +32,18 @@ if __name__ == '__main__':
     print("--- Stratified 5-fold cross-validation (the headline number) ---")
     print(f"Mean accuracy: {results['cvMean']}% (+/- {results['cvStd']}%)")
     print(f"Per-fold:      {results['cvFolds']}%")
+    print()
+
+    print("Evaluating robustness under incomplete/noisy symptom input...\n")
+    robustness = AITriageService.evaluate_robustness()
+
+    if not robustness:
+        print("Dataset not found — cannot evaluate robustness.")
+        sys.exit(1)
+
+    print(f"Test set: {robustness['testSetSize']} cases | "
+          f"{robustness['trialsPerLevel']} trials per corruption level\n")
+    print(f"{'Symptoms Dropped':<20}{'Condition Accuracy':<22}{'Urgency Accuracy':<20}")
+    for level in robustness['levels']:
+        label = f"{level['symptomsDropped']}" + (" (clean)" if level['symptomsDropped'] == 0 else "")
+        print(f"{label:<20}{str(level['diseaseAccuracy']) + '%':<22}{str(level['urgencyAccuracy']) + '%':<20}")

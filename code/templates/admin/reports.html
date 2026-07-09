@@ -79,6 +79,38 @@
         {% else %}
         <div class="empty-state"><p>Model accuracy unavailable — dataset not found.</p></div>
         {% endif %}
+
+        {% if model_robustness %}
+        <hr style="border:none;border-top:1px solid var(--gray-200,#e2e8f0);margin:20px 0;">
+        <h4 style="margin:0 0 4px;font-size:0.95rem;">Robustness Under Incomplete Symptom Input</h4>
+        <p style="margin:0 0 12px;font-size:0.8rem;color:var(--gray-500);">
+            Simulates real patients under-reporting symptoms: randomly removes 1–2 true symptoms
+            (and adds one unrelated one) per case, then re-predicts against the {{ model_robustness.testSetSize }}-case
+            held-out test set, averaged over {{ model_robustness.trialsPerLevel }} trials per level.
+        </p>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symptoms Dropped</th>
+                        <th>Condition Prediction Accuracy</th>
+                        <th>Urgency Classification Accuracy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for level in model_robustness.levels %}
+                    <tr>
+                        <td style="font-weight:600;">
+                            {{ level.symptomsDropped }} {% if level.symptomsDropped == 0 %}(clean input){% endif %}
+                        </td>
+                        <td>{{ level.diseaseAccuracy }}%</td>
+                        <td>{{ level.urgencyAccuracy }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
     </div>
 </div>
 

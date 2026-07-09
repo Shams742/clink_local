@@ -256,6 +256,137 @@ class AITriageService:
         }
 
     @classmethod
+    def evaluate_robustness(cls, drop_levels=(0, 1, 2), trials_per_level=3, add_noise_symptom=True, random_state=42):
+        """
+        Measure how prediction and urgency accuracy degrade under
+        incomplete/noisy symptom input — simulating real-world patients who
+        under-report or misreport symptoms, rather than the clean, complete
+        symptom sets used in evaluate_model().
+
+        For each corruption level (number of true symptoms randomly dropped,
+        with one unrelated symptom optionally injected), the held-out test
+        set is re-predicted `trials_per_level` times with different random
+        corruptions each time, and two accuracies are measured against the
+        ORIGINAL (uncorrupted) ground truth:
+          - diseaseAccuracy: does the model still predict the correct condition
+          - urgencyAccuracy: does the severity-based urgency heuristic still
+            match the urgency computed from the full, true symptom set
+
+        Does not touch or overwrite the persisted model.pkl.
+        """
+        import random as _random
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import accuracy_score
+
+        data2_dir = os.path.join(cls._model_dir, 'data2')
+        dataset_path = os.path.join(data2_dir, 'dataset.csv')
+        sev_path = os.path.join(data2_dir, 'Symptom-severity.csv')
+        if not os.path.exists(dataset_path):
+            return None
+
+        df = pd.read_csv(dataset_path)
+
+        symptoms_set = set()
+        row_symptom_lists = []
+        diseases = []
+        for _, row in df.iterrows():
+            row_symptoms = []
+            for val in row[1:].dropna():
+                val_str = str(val).strip()
+                if val_str and val_str.lower() != 'nan':
+                    clean = re.sub(r'\s+', '_', val_str.lower())
+                    row_symptoms.append(clean)
+                    symptoms_set.add(clean)
+            row_symptom_lists.append(row_symptoms)
+            diseases.append(str(row['Disease']).strip())
+
+        symptom_cols = sorted(symptoms_set)
+        col_index = {s: i for i, s in enumerate(symptom_cols)}
+
+        severities = {}
+        if os.path.exists(sev_path):
+            sev_df = pd.read_csv(sev_path)
+            for _, srow in sev_df.iterrows():
+                symp = re.sub(r'\s+', '_', str(srow['Symptom']).strip().lower())
+                try:
+                    severities[symp] = int(srow['weight'])
+                except ValueError:
+                    pass
+
+        def to_vector(symptom_list):
+            vec = np.zeros(len(symptom_cols))
+            for s in symptom_list:
+                if s in col_index:
+                    vec[col_index[s]] = 1
+            return vec
+
+        def urgency_of(symptom_list):
+            max_sev = max((severities.get(s, 0) for s in symptom_list), default=0)
+            return 'urgent' if max_sev >= 6 else 'non-urgent'
+
+        X_full = np.array([to_vector(s) for s in row_symptom_lists])
+        le = LabelEncoder()
+        y_full = le.fit_transform(diseases)
+
+        indices = np.arange(len(df))
+        idx_train, idx_test = train_test_split(
+            indices, test_size=0.2, random_state=random_state, stratify=y_full
+        )
+
+        model = DecisionTreeClassifier(random_state=random_state)
+        model.fit(X_full[idx_train], y_full[idx_train])
+
+        rng = _random.Random(random_state)
+
+        levels_result = []
+        for drop_n in drop_levels:
+            disease_accs = []
+            urgency_accs = []
+            for _trial in range(trials_per_level):
+                true_diseases, pred_diseases = [], []
+                true_urgencies, pred_urgencies = [], []
+
+                for i in idx_test:
+                    original = list(row_symptom_lists[i])
+                    true_urgency = urgency_of(original)
+
+                    corrupted = list(original)
+                    n_to_drop = min(drop_n, max(0, len(corrupted) - 1))
+                    for _ in range(n_to_drop):
+                        if corrupted:
+                            corrupted.pop(rng.randrange(len(corrupted)))
+
+                    if add_noise_symptom and drop_n > 0:
+                        candidates = [s for s in symptom_cols if s not in original]
+                        if candidates:
+                            corrupted.append(rng.choice(candidates))
+
+                    vec = to_vector(corrupted)
+                    pred_idx = model.predict([vec])[0]
+                    pred_disease = le.inverse_transform([pred_idx])[0]
+                    pred_urgency = urgency_of(corrupted)
+
+                    true_diseases.append(diseases[i])
+                    pred_diseases.append(pred_disease)
+                    true_urgencies.append(true_urgency)
+                    pred_urgencies.append(pred_urgency)
+
+                disease_accs.append(accuracy_score(true_diseases, pred_diseases))
+                urgency_accs.append(accuracy_score(true_urgencies, pred_urgencies))
+
+            levels_result.append({
+                'symptomsDropped': drop_n,
+                'diseaseAccuracy': round(float(np.mean(disease_accs)) * 100, 2),
+                'urgencyAccuracy': round(float(np.mean(urgency_accs)) * 100, 2),
+            })
+
+        return {
+            'testSetSize': len(idx_test),
+            'trialsPerLevel': trials_per_level,
+            'levels': levels_result,
+        }
+
+    @classmethod
     def load_model(cls):
         """Load the trained model from disk."""
         model_path = cls._get_model_path()
