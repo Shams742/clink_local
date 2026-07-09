@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create a patient account on CLINK — Smart Outpatient Triage and Scheduling System">
+    <title>Register — CLINK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand">
+                <h1>CLINK</h1>
+                <p>Smart Outpatient Triage &amp; Scheduling</p>
+            </div>
+
+            <h2>Create Your Account</h2>
+
+            <form id="registerForm" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label class="form-label" for="name">Full Name</label>
+                    <input type="text" id="name" class="form-input" placeholder="Enter your full name" required>
+                    <span class="form-hint">Letters and spaces only</span>
+                    <span class="form-error" id="nameError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-input" placeholder="Enter your email" required autocomplete="email">
+                    <span class="form-error" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="phone">Phone Number</label>
+                    <input type="tel" id="phone" class="form-input" placeholder="e.g. 96512345678" required>
+                    <span class="form-hint">8-15 digits, numbers only</span>
+                    <span class="form-error" id="phoneError"></span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Gender</label>
+                        <select id="gender" class="form-input" required>
+                            <option value="" disabled selected>Select gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                        <span class="form-error" id="genderError"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="dob">Date of Birth</label>
+                        <input type="date" id="dob" class="form-input" required>
+                        <span class="form-error" id="dobError"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Min 6 chars, 1 number, 1 special char" required autocomplete="new-password">
+                    <span class="form-hint">At least 6 characters, 1 number, 1 special character</span>
+                    <span class="form-error" id="passwordError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-input" placeholder="Re-enter your password" required>
+                    <span class="form-error" id="confirmError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="auth-link">
+                Already have an account? <a href="{{ url_for('auth.login_page') }}">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Set max date for DoB to today (prevent future dates)
+        document.getElementById('dob').max = new Date().toISOString().split('T')[0];
+
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+
+        function clearErrors() {
+            document.querySelectorAll('.form-error').forEach(e => {
+                e.textContent = '';
+                e.classList.remove('visible');
+            });
+        }
+
+        function validateClient() {
+            clearErrors();
+            let valid = true;
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const gender = document.getElementById('gender').value;
+            const dob = document.getElementById('dob').value;
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirmPassword').value;
+
+            if (!name || !/^[a-zA-Z]+( [a-zA-Z]+)*$/.test(name)) {
+                showError('nameError', 'Name must contain only letters and single spaces.');
+                valid = false;
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showError('emailError', 'Please enter a valid email address.');
+                valid = false;
+            }
+            const cleanPhone = phone.replace(/[+\-\s]/g, '');
+            if (!cleanPhone || !/^\d{8,15}$/.test(cleanPhone)) {
+                showError('phoneError', 'Enter a valid phone number (8-15 digits).');
+                valid = false;
+            }
+            if (!gender) {
+                showError('genderError', 'Please select your gender.');
+                valid = false;
+            }
+            if (!dob) {
+                showError('dobError', 'Please enter your date of birth.');
+                valid = false;
+            } else {
+                const dobDate = new Date(dob);
+                if (dobDate >= new Date()) {
+                    showError('dobError', 'Date of birth must be in the past.');
+                    valid = false;
+                }
+            }
+            if (password.length < 6) {
+                showError('passwordError', 'Password must be at least 6 characters.');
+                valid = false;
+            } else if (!/\d/.test(password)) {
+                showError('passwordError', 'Password must contain at least one number.');
+                valid = false;
+            } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+                showError('passwordError', 'Password must contain at least one special character.');
+                valid = false;
+            }
+            if (password !== confirm) {
+                showError('confirmError', 'Passwords do not match.');
+                valid = false;
+            }
+            return valid;
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            if (!validateClient()) return;
+
+            const btn = document.getElementById('registerBtn');
+            setLoading(btn, true);
+
+            try {
+                const data = await API.post('/api/auth/register', {
+                    name: document.getElementById('name').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    phone: document.getElementById('phone').value.trim(),
+                    gender: document.getElementById('gender').value,
+                    dob: document.getElementById('dob').value,
+                    password: document.getElementById('password').value,
+                });
+
+                if (data.success) {
+                    Toast.success(data.message);
+                    setTimeout(() => window.location.href = data.redirect, 500);
+                }
+            } catch (err) {
+                Toast.error(err.message);
+                setLoading(btn, false);
+            }
+        }
+    </script>
+</body>
+</html>

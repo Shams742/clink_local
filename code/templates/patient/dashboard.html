@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Patient Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('patient.submit_symptoms_page') }}" class="btn btn-primary">🩺 Submit Symptoms</a>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-value">{{ records | length }}</div>
+        <div class="stat-label">Total Submissions</div>
+    </div>
+    <div class="stat-card urgent">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-value">{{ records | selectattr('urgency_level', 'equalto', 'urgent') | list | length }}</div>
+        <div class="stat-label">Urgent Cases</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value">{{ appointments | length }}</div>
+        <div class="stat-label">Appointments</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-icon">🔔</div>
+        <div class="stat-value">{{ unread_count }}</div>
+        <div class="stat-label">Unread Notifications</div>
+    </div>
+</div>
+
+<!-- Recent Symptom Records -->
+<div class="card mb-2">
+    <div class="card-header">
+        <h3>📋 My Symptom Records</h3>
+        <a href="{{ url_for('patient.submit_symptoms_page') }}" class="btn btn-sm btn-primary">+ New Submission</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if records %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Symptoms</th>
+                        <th>Urgency</th>
+                        <th>Specialist</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>#{{ record.id }}</td>
+                        <td>{{ record.created_at.strftime('%b %d, %Y') }}</td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            {{ record.symptom_details[:60] }}{% if record.symptom_details|length > 60 %}...{% endif %}
+                        </td>
+                        <td>
+                            {% if record.urgency_level == 'urgent' %}
+                            <span class="badge-urgency badge-urgent">🔴 Urgent</span>
+                            {% elif record.urgency_level %}
+                            <span class="badge-urgency badge-non-urgent">🟢 Non-Urgent</span>
+                            {% else %}
+                            <span class="badge-status badge-new">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.recommended_specialist or '—' }}</td>
+                        <td><span class="badge-status badge-{{ record.case_status }}">{{ record.case_status }}</span></td>
+                        <td>
+                            <a href="{{ url_for('patient.triage_result_page', record_id=record.id) }}" class="btn btn-sm btn-secondary">View</a>
+                            {% if record.analysis_status == 'completed' and not record.appointment %}
+                            <a href="{{ url_for('patient.book_appointment_page', record_id=record.id) }}" class="btn btn-sm btn-primary">Book</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">🩺</div>
+            <p>No symptom records yet. Submit your symptoms to get started.</p>
+            <a href="{{ url_for('patient.submit_symptoms_page') }}" class="btn btn-primary mt-1">Submit Symptoms</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Appointments -->
+<div class="card" id="appointments">
+    <div class="card-header">
+        <h3>📅 My Appointments</h3>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if appointments %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Doctor</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr id="appt-row-{{ appt.id }}">
+                        <td>#{{ appt.id }}</td>
+                        <td>{{ appt.date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+                        <td>Dr. {{ appt.doctor.name if appt.doctor else 'N/A' }}</td>
+                        <td id="appt-status-{{ appt.id }}"><span class="badge-status badge-{{ appt.status }}">{{ appt.status }}</span></td>
+                        <td>
+                            {% if appt.status in ['requested', 'scheduled'] %}
+                            <button class="btn btn-sm btn-secondary" style="color:var(--red-500);" onclick="cancelAppointment({{ appt.id }})">✕ Cancel</button>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <p>No appointments booked yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function cancelAppointment(apptId) {
+        if (!confirm('Are you sure you want to cancel this appointment?')) return;
+        try {
+            const data = await API.put(`/api/patient/appointments/${apptId}/cancel`);
+            Toast.success(data.message);
+            const statusCell = document.getElementById(`appt-status-${apptId}`);
+            if (statusCell) {
+                statusCell.innerHTML = '<span class="badge-status badge-cancelled">cancelled</span>';
+            }
+            // Remove cancel button
+            const row = document.getElementById(`appt-row-${apptId}`);
+            if (row) {
+                const actionCell = row.querySelector('td:last-child');
+                if (actionCell) actionCell.innerHTML = '—';
+            }
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+</script>
+{% endblock %}

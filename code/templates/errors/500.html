@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}500 — Server Error{% endblock %}
+{% block page_title %}Error 500{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:24px;">
+    <div style="font-size:6rem;line-height:1;animation:shake 0.5s ease-in-out infinite alternate;">⚠️</div>
+    <div>
+        <h1 style="font-size:5rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0;line-height:1;">500</h1>
+        <p style="font-size:1.4rem;color:var(--gray-300);margin:8px 0 0;">Internal Server Error</p>
+        <p style="color:var(--gray-500);margin:8px 0 0;">Something went wrong on our end. Please try again later.</p>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+        <a href="javascript:location.reload()" class="btn btn-secondary">🔄 Try Again</a>
+        {% if current_user.is_authenticated %}
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">🏠 Dashboard</a>
+            {% elif current_user.role == 'doctor' %}
+            <a href="{{ url_for('doctor.dashboard') }}" class="btn btn-primary">🏠 Dashboard</a>
+            {% else %}
+            <a href="{{ url_for('patient.dashboard') }}" class="btn btn-primary">🏠 Dashboard</a>
+            {% endif %}
+        {% else %}
+        <a href="{{ url_for('auth.login_page') }}" class="btn btn-primary">🔐 Login</a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+@keyframes shake {
+    0% { transform: rotate(-5deg); }
+    100% { transform: rotate(5deg); }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Doctor Dashboard{% endblock %}
+{% block page_title %}Doctor Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-value">{{ stats.totalCases }}</div>
+        <div class="stat-label">Total Cases</div>
+    </div>
+    <div class="stat-card urgent">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-value">{{ stats.urgentCases }}</div>
+        <div class="stat-label">Urgent Cases</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-icon">🆕</div>
+        <div class="stat-value">{{ stats.newCases }}</div>
+        <div class="stat-label">New Cases</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value">{{ stats.appointmentsToday }}</div>
+        <div class="stat-label">Today's Appointments</div>
+    </div>
+</div>
+
+<!-- Patient Cases -->
+<div class="card mb-2" id="cases">
+    <div class="card-header">
+        <h3>📋 Assigned Patient Cases</h3>
+        <div style="display:flex;gap:var(--space-sm);">
+            <select class="form-select" style="width:auto;padding:0.4rem 0.7rem;font-size:0.8rem;" id="filterStatus" onchange="filterCases()">
+                <option value="all">All Statuses</option>
+                <option value="new">New</option>
+                <option value="in-review">In Review</option>
+                <option value="consulted">Consulted</option>
+                <option value="closed">Closed</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if cases %}
+        <div class="table-wrapper">
+            <table id="casesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Date</th>
+                        <th>Urgency</th>
+                        <th>Condition</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in cases %}
+                    <tr data-status="{{ record.case_status }}">
+                        <td>#{{ record.id }}</td>
+                        <td>
+                            <div style="font-weight:600;">{{ record.patient.name }}</div>
+                            <div style="font-size:0.75rem;color:var(--gray-500);">{{ record.patient.email }}</div>
+                        </td>
+                        <td>{{ record.created_at.strftime('%b %d, %Y') }}</td>
+                        <td>
+                            {% if record.urgency_level == 'urgent' %}
+                            <span class="badge-urgency badge-urgent">🔴 Urgent</span>
+                            {% else %}
+                            <span class="badge-urgency badge-non-urgent">🟢 Non-Urgent</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.predicted_condition or '—' }}</td>
+                        <td><span class="badge-status badge-{{ record.case_status }}">{{ record.case_status }}</span></td>
+                        <td>
+                            <a href="{{ url_for('doctor.case_details', record_id=record.id) }}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>No patient cases assigned yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Appointments -->
+<div class="card" id="appointments">
+    <div class="card-header">
+        <h3>📅 Upcoming Appointments</h3>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if appointments %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr>
+                        <td>#{{ appt.id }}</td>
+                        <td>{{ appt.patient.name if appt.patient else 'N/A' }}</td>
+                        <td>{{ appt.date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+                        <td><span class="badge-status badge-{{ appt.status }}">{{ appt.status }}</span></td>
+                        <td>
+                            {% if appt.status == 'scheduled' %}
+                            <button class="btn btn-sm btn-success" onclick="updateApptStatus({{ appt.id }}, 'completed')">Complete</button>
+                            <button class="btn btn-sm btn-danger" onclick="updateApptStatus({{ appt.id }}, 'cancelled')" style="margin-left:4px;">Cancel</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <p>No upcoming appointments.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function filterCases() {
+        const status = document.getElementById('filterStatus').value;
+        document.querySelectorAll('#casesTable tbody tr').forEach(row => {
+            if (status === 'all' || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    async function updateApptStatus(id, status) {
+        if (!confirm(`Are you sure you want to mark this appointment as ${status}?`)) return;
+        try {
+            await API.put(`/api/appointment/${id}/status`, { status });
+            Toast.success(`Appointment marked as ${status}.`);
+            setTimeout(() => location.reload(), 800);
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Simulated Email Log{% endblock %}
+{% block page_title %}Email Simulation Log{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body">
+        <p style="color:var(--gray-400);margin:0;font-size:0.9rem;">
+            🧪 <strong>Simulation Mode:</strong> No real emails are sent. This log shows what would have been emailed to users.
+            The log is stored in memory and resets when the server restarts.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3>📧 Simulated Emails</h3>
+        <span style="color:var(--gray-400);font-size:0.9rem;">{{ emails | length }} total</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if emails %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>To</th>
+                        <th>Subject</th>
+                        <th>Body</th>
+                        <th>Sent At</th>
+                        <th>Notif ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for email in emails %}
+                    <tr>
+                        <td style="color:var(--gray-500);font-size:0.85rem;">{{ email.id }}</td>
+                        <td style="font-size:0.85rem;color:var(--accent-blue);">{{ email.to }}</td>
+                        <td style="font-size:0.85rem;font-weight:500;">{{ email.subject }}</td>
+                        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.85rem;color:var(--gray-300);" title="{{ email.body }}">{{ email.body }}</td>
+                        <td style="white-space:nowrap;font-size:0.82rem;color:var(--gray-400);">{{ email.sent_at[:19].replace('T', ' ') }}</td>
+                        <td style="font-size:0.85rem;color:var(--gray-500);">{% if email.notification_id %}#{{ email.notification_id }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📧</div>
+            <p>No simulated emails yet. Emails appear here when notifications are triggered (e.g., appointment bookings, status updates).</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Configure Schedules{% endblock %}
+{% block page_title %}Configure Schedules{% endblock %}
+
+{% block content %}
+<p style="color:var(--gray-500);margin-bottom:var(--space-xl);font-size:0.9rem;">
+    Manage doctor availability and configure their working hours for appointment slot generation.
+</p>
+
+<div class="schedule-grid">
+    {% for doctor in doctors %}
+    {% set hours = doctor.to_dict().get('scheduleHours', {'start': 8, 'end': 17}) %}
+    <div class="doctor-schedule-card" id="schedule-card-{{ doctor.id }}">
+        <div class="doctor-info">
+            <div class="doctor-avatar">{{ doctor.name[0] | upper }}</div>
+            <div>
+                <div class="doctor-name">Dr. {{ doctor.name }}</div>
+                <div class="doctor-spec">{{ doctor.specialization }}</div>
+            </div>
+        </div>
+
+        <!-- Availability Toggle -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-md) 0;border-top:1px solid var(--gray-100);">
+            <div>
+                <span style="font-size:0.8rem;font-weight:600;color:var(--gray-600);">Availability</span>
+                <div style="margin-top:4px;">
+                    <span class="badge-status {% if doctor.availability == 'available' %}badge-completed{% else %}badge-cancelled{% endif %}" id="avail-badge-{{ doctor.id }}">
+                        {{ doctor.availability }}
+                    </span>
+                </div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox"
+                       {% if doctor.availability == 'available' %}checked{% endif %}
+                       onchange="toggleAvailability({{ doctor.id }}, this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <!-- Time Slot Configuration -->
+        <div style="border-top:1px solid var(--gray-100);padding-top:var(--space-md);">
+            <span style="font-size:0.8rem;font-weight:600;color:var(--gray-600);display:block;margin-bottom:8px;">🕐 Working Hours</span>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <label style="font-size:0.78rem;color:var(--gray-400);">From</label>
+                    <select id="start-{{ doctor.id }}" class="form-input" style="width:auto;padding:4px 8px;font-size:0.85rem;">
+                        {% for h in range(6, 21) %}
+                        <option value="{{ h }}" {% if h == hours.start %}selected{% endif %}>{{ '%02d:00'|format(h) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <label style="font-size:0.78rem;color:var(--gray-400);">To</label>
+                    <select id="end-{{ doctor.id }}" class="form-input" style="width:auto;padding:4px 8px;font-size:0.85rem;">
+                        {% for h in range(7, 22) %}
+                        <option value="{{ h }}" {% if h == hours.end %}selected{% endif %}>{{ '%02d:00'|format(h) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="saveHours({{ doctor.id }})">Save</button>
+            </div>
+        </div>
+
+        <div style="font-size:0.78rem;color:var(--gray-500);padding-top:var(--space-sm);border-top:1px solid var(--gray-100);margin-top:var(--space-sm);">
+            <div>Account: <span class="badge-status {% if doctor.account_status == 'active' %}badge-completed{% else %}badge-cancelled{% endif %}">{{ doctor.account_status }}</span></div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not doctors %}
+    <div class="empty-state" style="grid-column:1/-1;">
+        <div class="empty-icon">🩺</div>
+        <p>No doctors registered yet. Add doctors from the <a href="{{ url_for('admin.manage_users') }}">User Management</a> page.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function toggleAvailability(doctorId, isAvailable) {
+        const availability = isAvailable ? 'available' : 'unavailable';
+        try {
+            const data = await API.put(`/api/admin/schedules/${doctorId}`, { availability });
+            Toast.success(data.message);
+
+            const badge = document.getElementById(`avail-badge-${doctorId}`);
+            badge.textContent = availability;
+            badge.className = `badge-status ${isAvailable ? 'badge-completed' : 'badge-cancelled'}`;
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+
+    async function saveHours(doctorId) {
+        const start = parseInt(document.getElementById(`start-${doctorId}`).value);
+        const end = parseInt(document.getElementById(`end-${doctorId}`).value);
+        if (start >= end) {
+            Toast.error('Start time must be before end time.');
+            return;
+        }
+        try {
+            const data = await API.put(`/api/admin/schedules/${doctorId}/hours`, { start, end });
+            Toast.success(data.message);
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+</script>
+{% endblock %}

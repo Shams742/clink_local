@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Submit Symptoms{% endblock %}
+{% block page_title %}Submit Symptoms{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3>🩺 Symptom Submission Form</h3>
+    </div>
+    <div class="card-body">
+        <p style="color:var(--gray-500);margin-bottom:var(--space-lg);font-size:0.9rem;">
+            Select your symptoms from the list below. The AI triage system will analyse them to classify urgency and recommend a specialist.
+        </p>
+
+        <form id="symptomForm" onsubmit="handleSubmitSymptoms(event)">
+            <!-- Symptom Search -->
+            <div class="form-group">
+                <label class="form-label">Search & Select Symptoms</label>
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="symptomSearch" placeholder="Search symptoms..." oninput="filterSymptoms()">
+                </div>
+
+                <div class="symptom-grid" id="symptomGrid">
+                    {% for i in range(symptom_codes|length) %}
+                    <label class="symptom-item" data-code="{{ symptom_codes[i] }}">
+                        <input type="checkbox" value="{{ symptom_codes[i] }}" onchange="updateSelection()">
+                        {{ symptoms[i] }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Selected symptoms display -->
+            <div class="form-group">
+                <label class="form-label">Selected Symptoms (<span id="selectedCount">0</span>)</label>
+                <div class="selected-symptoms" id="selectedSymptoms">
+                    <span style="color:var(--gray-400);font-size:0.85rem;">No symptoms selected</span>
+                </div>
+            </div>
+
+            <!-- Additional details -->
+            <div class="form-group">
+                <label class="form-label" for="details">Additional Details (optional)</label>
+                <textarea id="details" class="form-textarea" placeholder="Describe any additional details about your symptoms, duration, severity..."></textarea>
+            </div>
+
+            <div style="display:flex;gap:var(--space-md);justify-content:flex-end;">
+                <a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                    🔬 Analyse Symptoms
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedSymptoms = new Set();
+
+    function filterSymptoms() {
+        const query = document.getElementById('symptomSearch').value.toLowerCase();
+        document.querySelectorAll('.symptom-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    function updateSelection() {
+        selectedSymptoms.clear();
+        document.querySelectorAll('.symptom-item input:checked').forEach(cb => {
+            selectedSymptoms.add(cb.value);
+            cb.closest('.symptom-item').classList.add('selected');
+        });
+        document.querySelectorAll('.symptom-item input:not(:checked)').forEach(cb => {
+            cb.closest('.symptom-item').classList.remove('selected');
+        });
+
+        // Update selected display
+        const container = document.getElementById('selectedSymptoms');
+        const countEl = document.getElementById('selectedCount');
+        countEl.textContent = selectedSymptoms.size;
+
+        if (selectedSymptoms.size === 0) {
+            container.innerHTML = '<span style="color:var(--gray-400);font-size:0.85rem;">No symptoms selected</span>';
+            document.getElementById('submitBtn').disabled = true;
+        } else {
+            container.innerHTML = Array.from(selectedSymptoms).map(s =>
+                `<span class="symptom-tag">${s.replace(/_/g, ' ')} <span class="remove" onclick="removeSymptom('${s}')">&times;</span></span>`
+            ).join('');
+            document.getElementById('submitBtn').disabled = false;
+        }
+    }
+
+    function removeSymptom(code) {
+        const cb = document.querySelector(`.symptom-item input[value="${code}"]`);
+        if (cb) {
+            cb.checked = false;
+            updateSelection();
+        }
+    }
+
+    async function handleSubmitSymptoms(e) {
+        e.preventDefault();
+        if (selectedSymptoms.size === 0) {
+            Toast.error('Please select at least one symptom.');
+            return;
+        }
+
+        const btn = document.getElementById('submitBtn');
+        setLoading(btn, true);
+
+        try {
+            const data = await API.post('/api/patient/symptoms', {
+                symptoms: Array.from(selectedSymptoms),
+                details: document.getElementById('details').value,
+            });
+
+            if (data.success) {
+                Toast.success(data.message);
+                setTimeout(() => {
+                    window.location.href = `/patient/triage/${data.recordId}`;
+                }, 800);
+            }
+        } catch (err) {
+            Toast.error(err.message);
+            setLoading(btn, false);
+        }
+    }
+</script>
+{% endblock %}

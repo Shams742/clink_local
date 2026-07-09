@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Log in to CLINK — Smart Outpatient Triage and Scheduling System">
+    <title>Login — CLINK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="brand">
+                <h1>CLINK</h1>
+                <p>Smart Outpatient Triage & Scheduling</p>
+            </div>
+
+            <h2>Welcome Back</h2>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="margin-bottom:var(--space-md);">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}" style="padding:var(--space-sm) var(--space-md);border-radius:var(--radius-sm);margin-bottom:8px;font-size:0.85rem;background:var(--gray-100);color:var(--gray-700);border-left:4px solid var(--primary-500); word-break: break-all;">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-input" placeholder="Enter your email" required autocomplete="email">
+                    <span class="form-error" id="emailError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+                    <span class="form-error" id="passwordError"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="auth-link">
+                Don't have an account? <a href="{{ url_for('auth.register_page') }}">Register here</a><br>
+                <a href="{{ url_for('auth.forgot_password_page') }}" style="display:inline-block;margin-top:8px;font-size:0.85rem;color:var(--primary-600);text-decoration:none;">Forgot password?</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            setLoading(btn, true);
+
+            try {
+                const data = await API.post('/api/auth/login', {
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value,
+                });
+
+                if (data.success) {
+                    Toast.success(data.message);
+                    setTimeout(() => window.location.href = data.redirect, 500);
+                }
+            } catch (err) {
+                Toast.error(err.message);
+                setLoading(btn, false);
+            }
+        }
+    </script>
+</body>
+</html>

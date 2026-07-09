@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block page_title %}Manage Users{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary" onclick="Modal.open('addDoctorModal')">+ Add Doctor</button>
+{% endblock %}
+
+{% block content %}
+<!-- Tab buttons -->
+<div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg);">
+    <button class="btn btn-primary" id="tabPatients" onclick="showTab('patients')">👤 Patients ({{ patients|length }})</button>
+    <button class="btn btn-secondary" id="tabDoctors" onclick="showTab('doctors')">🩺 Doctors ({{ doctors|length }})</button>
+</div>
+
+<!-- Patients Table -->
+<div class="card" id="patientsSection">
+    <div class="card-header"><h3>👤 Patient Accounts</h3></div>
+    <div class="card-body" style="padding:0;">
+        {% if patients %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Gender</th>
+                        <th>Age</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in patients %}
+                    <tr id="patient-row-{{ p.id }}">
+                        <td>#{{ p.id }}</td>
+                        <td style="font-weight:600;">{{ p.name }}</td>
+                        <td>{{ p.email }}</td>
+                        <td>{{ p.phone }}</td>
+                        <td>{{ p.gender or '—' }}</td>
+                        <td>{{ p.age if p.age is not none else '—' }}</td>
+                        <td>
+                            <span class="badge-status {% if p.account_status == 'active' %}badge-completed{% else %}badge-cancelled{% endif %}">
+                                {{ p.account_status }}
+                            </span>
+                        </td>
+                        <td>{{ p.created_at.strftime('%b %d, %Y') if p.created_at else '—' }}</td>
+                        <td>
+                            {% if p.account_status == 'active' %}
+                            <button class="btn btn-sm btn-danger" onclick="toggleUser({{ p.id }}, 'patient', 'deactivate')">Deactivate</button>
+                            {% else %}
+                            <button class="btn btn-sm btn-success" onclick="toggleUser({{ p.id }}, 'patient', 'activate')">Activate</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state"><p>No patients registered yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Doctors Table -->
+<div class="card hidden" id="doctorsSection">
+    <div class="card-header"><h3>🩺 Doctor Accounts</h3></div>
+    <div class="card-body" style="padding:0;">
+        {% if doctors %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Specialization</th>
+                        <th>Availability</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in doctors %}
+                    <tr id="doctor-row-{{ d.id }}">
+                        <td>#{{ d.id }}</td>
+                        <td style="font-weight:600;">Dr. {{ d.name }}</td>
+                        <td>{{ d.email }}</td>
+                        <td>{{ d.specialization }}</td>
+                        <td>
+                            <span class="badge-status {% if d.availability == 'available' %}badge-completed{% else %}badge-cancelled{% endif %}">
+                                {{ d.availability }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge-status {% if d.account_status == 'active' %}badge-completed{% else %}badge-cancelled{% endif %}">
+                                {{ d.account_status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if d.account_status == 'active' %}
+                            <button class="btn btn-sm btn-danger" onclick="toggleUser({{ d.id }}, 'doctor', 'deactivate')">Deactivate</button>
+                            {% else %}
+                            <button class="btn btn-sm btn-success" onclick="toggleUser({{ d.id }}, 'doctor', 'activate')">Activate</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state"><p>No doctors registered yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Doctor Modal -->
+<div class="modal-overlay" id="addDoctorModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Doctor</h3>
+            <button class="modal-close" onclick="Modal.close('addDoctorModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addDoctorForm" onsubmit="handleAddDoctor(event)">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="docName" class="form-input" placeholder="Doctor's full name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="docEmail" class="form-input" placeholder="doctor@clink.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="docPassword" class="form-input" placeholder="Min 6 chars, 1 number, 1 special" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Specialization</label>
+                    <select id="docSpec" class="form-select" required>
+                        <option value="">Select specialization</option>
+                        <option value="General Practitioner">General Practitioner</option>
+                        <option value="Cardiologist">Cardiologist</option>
+                        <option value="Neurologist">Neurologist</option>
+                        <option value="Dermatologist">Dermatologist</option>
+                        <option value="Gastroenterologist">Gastroenterologist</option>
+                        <option value="Pulmonologist">Pulmonologist</option>
+                        <option value="Endocrinologist">Endocrinologist</option>
+                        <option value="Infectious Disease Specialist">Infectious Disease Specialist</option>
+                        <option value="Rheumatologist">Rheumatologist</option>
+                        <option value="Hepatologist">Hepatologist</option>
+                        <option value="Orthopedic Surgeon">Orthopedic Surgeon</option>
+                        <option value="ENT Specialist">ENT Specialist</option>
+                        <option value="Urologist">Urologist</option>
+                        <option value="Allergist">Allergist</option>
+                        <option value="Vascular Surgeon">Vascular Surgeon</option>
+                        <option value="General Surgeon">General Surgeon</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('addDoctorModal')">Cancel</button>
+            <button class="btn btn-primary" id="addDocBtn" onclick="handleAddDoctor(event)">Create Doctor</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function showTab(tab) {
+        document.getElementById('patientsSection').classList.toggle('hidden', tab !== 'patients');
+        document.getElementById('doctorsSection').classList.toggle('hidden', tab !== 'doctors');
+        document.getElementById('tabPatients').className = tab === 'patients' ? 'btn btn-primary' : 'btn btn-secondary';
+        document.getElementById('tabDoctors').className = tab === 'doctors' ? 'btn btn-primary' : 'btn btn-secondary';
+    }
+
+    async function toggleUser(id, role, action) {
+        if (!confirm(`Are you sure you want to ${action} this ${role}?`)) return;
+        try {
+            await API.put(`/api/admin/users/${id}/${action}`, { role });
+            Toast.success(`User ${action}d successfully.`);
+            setTimeout(() => location.reload(), 600);
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+
+    async function handleAddDoctor(e) {
+        e.preventDefault();
+        const btn = document.getElementById('addDocBtn');
+        setLoading(btn, true);
+
+        try {
+            const data = await API.post('/api/admin/users/doctor', {
+                name: document.getElementById('docName').value,
+                email: document.getElementById('docEmail').value,
+                password: document.getElementById('docPassword').value,
+                specialization: document.getElementById('docSpec').value,
+            });
+
+            if (data.success) {
+                Toast.success(data.message);
+                Modal.close('addDoctorModal');
+                setTimeout(() => location.reload(), 600);
+            }
+        } catch (err) {
+            Toast.error(err.message);
+            setLoading(btn, false);
+        }
+    }
+</script>
+{% endblock %}

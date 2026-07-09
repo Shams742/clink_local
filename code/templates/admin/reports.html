@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Reports & Analytics{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<!-- Summary KPI Row -->
+<div class="stats-grid" style="margin-bottom:24px;">
+    <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.totalAppointments }}</div>
+            <div class="stat-label">Total Appointments</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🩺</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.totalRecords }}</div>
+            <div class="stat-label">Triage Records</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🚨</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.urgentCases }}</div>
+            <div class="stat-label">Urgent Cases</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🔔</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ chart_data.unreadNotifications }}</div>
+            <div class="stat-label">Unread Notifications</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <!-- Appointments by Status (Doughnut) -->
+    <div class="card">
+        <div class="card-header"><h3>📊 Appointments by Status</h3></div>
+        <div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:260px;">
+            <canvas id="statusChart" style="max-height:240px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Urgency Distribution (Bar) -->
+    <div class="card">
+        <div class="card-header"><h3>⚡ Urgency Distribution</h3></div>
+        <div class="card-body" style="display:flex;justify-content:center;align-items:center;min-height:260px;">
+            <canvas id="urgencyChart" style="max-height:240px;"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Line Chart -->
+<div class="card">
+    <div class="card-header"><h3>📈 Monthly Appointments (Last 6 Months)</h3></div>
+    <div class="card-body" style="min-height:280px;display:flex;align-items:center;justify-content:center;">
+        <canvas id="monthlyChart" style="width:100%;max-height:260px;"></canvas>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    const statusData = {{ chart_data.appointmentsByStatus | tojson }};
+    const urgencyData = {{ chart_data.urgencyDistribution | tojson }};
+    const monthlyData = {{ chart_data.monthlyAppointments | tojson }};
+
+    const CHART_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
+    const URGENCY_COLORS = {'urgent': '#ef4444', 'moderate': '#f59e0b', 'routine': '#10b981', 'emergency': '#dc2626'};
+
+    // Appointments by Status - Doughnut
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusData).map(k => k.charAt(0).toUpperCase() + k.slice(1)),
+            datasets: [{
+                data: Object.values(statusData),
+                backgroundColor: CHART_COLORS,
+                borderColor: '#1e293b',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            plugins: { legend: { labels: { color: '#cbd5e1' } } },
+            cutout: '65%'
+        }
+    });
+
+    // Urgency Distribution - Bar
+    const urgencyLabels = Object.keys(urgencyData).map(k => k.charAt(0).toUpperCase() + k.slice(1));
+    new Chart(document.getElementById('urgencyChart'), {
+        type: 'bar',
+        data: {
+            labels: urgencyLabels,
+            datasets: [{
+                label: 'Cases',
+                data: Object.values(urgencyData),
+                backgroundColor: Object.keys(urgencyData).map(k => URGENCY_COLORS[k] || '#64748b'),
+                borderRadius: 6
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#1e293b' } }
+            }
+        }
+    });
+
+    // Monthly Appointments - Line
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: Object.keys(monthlyData),
+            datasets: [{
+                label: 'Appointments',
+                data: Object.values(monthlyData),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.15)',
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#3b82f6',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            plugins: { legend: { labels: { color: '#cbd5e1' } } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#1e293b' } }
+            }
+        }
+    });
+</script>
+{% endblock %}

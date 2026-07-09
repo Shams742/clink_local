@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Triage Result{% endblock %}
+{% block page_title %}Triage Result — Record #{{ record.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="triage-result">
+            {% if record.analysis_status == 'completed' %}
+            <!-- Urgency Badge -->
+            <div class="urgency-badge-large {{ record.urgency_level }}">
+                {% if record.urgency_level == 'urgent' %}
+                🔴 URGENT
+                {% else %}
+                🟢 NON-URGENT
+                {% endif %}
+            </div>
+
+            <h3 style="font-size:1.2rem;color:var(--gray-900);margin-bottom:0.5rem;">
+                AI Triage Analysis Complete
+            </h3>
+            <p style="color:var(--gray-500);font-size:0.9rem;">
+                Based on your symptoms, the AI has classified your case and recommended a specialist.
+            </p>
+
+            <!-- Info Grid -->
+            <div class="triage-info-grid">
+                <div class="triage-info-item">
+                    <div class="label">Predicted Condition</div>
+                    <div class="value">{{ record.predicted_condition or 'N/A' }}</div>
+                </div>
+                <div class="triage-info-item">
+                    <div class="label">Urgency Level</div>
+                    <div class="value">
+                        {% if record.urgency_level == 'urgent' %}
+                        <span style="color:var(--urgent);">⚠ Urgent — Seek care promptly</span>
+                        {% else %}
+                        <span style="color:var(--non-urgent);">✓ Non-Urgent — Routine appointment</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="triage-info-item">
+                    <div class="label">Recommended Specialist</div>
+                    <div class="value">{{ record.recommended_specialist or 'General Practitioner' }}</div>
+                </div>
+                <div class="triage-info-item">
+                    <div class="label">Submitted Symptoms</div>
+                    <div class="value" style="font-size:0.9rem;">
+                        {% for s in record.symptoms_list.split(',') if record.symptoms_list %}
+                        <span class="symptom-tag">{{ s.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if record.symptom_details %}
+                <div class="triage-info-item" style="grid-column: 1 / -1;">
+                    <div class="label">Additional Details</div>
+                    <div class="value" style="font-size:0.9rem;">{{ record.symptom_details }}</div>
+                </div>
+                {% endif %}
+                <div class="triage-info-item">
+                    <div class="label">Case Status</div>
+                    <div class="value"><span class="badge-status badge-{{ record.case_status }}">{{ record.case_status }}</span></div>
+                </div>
+                <div class="triage-info-item">
+                    <div class="label">Submission Date</div>
+                    <div class="value">{{ record.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="margin-top:var(--space-xl);display:flex;gap:var(--space-md);justify-content:center;flex-wrap:wrap;">
+                <a href="{{ url_for('patient.dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+                {% if not record.appointment %}
+                <a href="{{ url_for('patient.book_appointment_page', record_id=record.id) }}" class="btn btn-primary btn-lg">
+                    📅 Book Appointment
+                </a>
+                {% else %}
+                <span class="btn btn-success" style="cursor:default;">✓ Appointment Booked</span>
+                {% endif %}
+            </div>
+
+            {% elif record.analysis_status == 'pending' %}
+            <div class="empty-state">
+                <div class="empty-icon"><span class="spinner dark" style="width:40px;height:40px;border-width:3px;"></span></div>
+                <p>Analysis is in progress. Please refresh in a moment.</p>
+                <button class="btn btn-secondary mt-1" onclick="location.reload()">Refresh</button>
+            </div>
+
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">⚠️</div>
+                <p>Analysis failed. Please try submitting your symptoms again.</p>
+                <a href="{{ url_for('patient.submit_symptoms_page') }}" class="btn btn-primary mt-1">Try Again</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div style="margin-top:var(--space-md);padding:var(--space-md);background:var(--accent-50);border:1px solid var(--accent-200);border-radius:var(--radius-md);font-size:0.82rem;color:var(--accent-600);">
+    ⚠️ <strong>Disclaimer:</strong> This AI-based triage provides guidance only and does not constitute a medical diagnosis. 
+    Please consult a licensed healthcare professional for clinical decisions.
+</div>
+{% endblock %}

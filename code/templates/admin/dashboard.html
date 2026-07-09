@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">{{ stats.totalPatients }}</div>
+        <div class="stat-label">Total Patients</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-icon">🩺</div>
+        <div class="stat-value">{{ stats.totalDoctors }}</div>
+        <div class="stat-label">Total Doctors</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value">{{ stats.scheduledAppointments }}</div>
+        <div class="stat-label">Active Appointments</div>
+    </div>
+    <div class="stat-card urgent">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-value">{{ stats.urgentCases }}</div>
+        <div class="stat-label">Urgent Cases</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Recent Patients -->
+    <div class="card">
+        <div class="card-header">
+            <h3>👤 Recent Patients</h3>
+            <a href="{{ url_for('admin.manage_users') }}" class="btn btn-sm btn-secondary">View All</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            {% if patients %}
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Name</th><th>Email</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for p in patients[:5] %}
+                        <tr>
+                            <td style="font-weight:600;">{{ p.name }}</td>
+                            <td>{{ p.email }}</td>
+                            <td><span class="badge-status badge-{% if p.account_status == 'active' %}completed{% else %}cancelled{% endif %}">{{ p.account_status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><p>No patients registered.</p></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Doctors -->
+    <div class="card">
+        <div class="card-header">
+            <h3>🩺 Doctors</h3>
+            <a href="{{ url_for('admin.configure_schedules') }}" class="btn btn-sm btn-secondary">Schedules</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            {% if doctors %}
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr><th>Name</th><th>Specialization</th><th>Availability</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for d in doctors[:8] %}
+                        <tr>
+                            <td style="font-weight:600;">Dr. {{ d.name }}</td>
+                            <td>{{ d.specialization }}</td>
+                            <td>
+                                <span class="badge-status {% if d.availability == 'available' %}badge-completed{% else %}badge-cancelled{% endif %}">
+                                    {{ d.availability }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><p>No doctors registered.</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

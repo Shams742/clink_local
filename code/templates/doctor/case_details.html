@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Case Details{% endblock %}
+{% block page_title %}Case #{{ record.id }} — {{ record.patient.name }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('doctor.dashboard') }}" class="btn btn-secondary">← Back to Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<div class="case-detail-grid">
+    <!-- Main Info -->
+    <div>
+        <!-- Patient Info -->
+        <div class="card mb-2">
+            <div class="card-header"><h3>👤 Patient Information</h3></div>
+            <div class="card-body">
+                <div class="grid-2">
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Name</div>
+                        <div style="font-weight:600;margin-top:4px;">{{ record.patient.name }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Email</div>
+                        <div style="margin-top:4px;">{{ record.patient.email }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Phone</div>
+                        <div style="margin-top:4px;">{{ record.patient.phone }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Gender</div>
+                        <div style="margin-top:4px;">{{ record.patient.gender or 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Age</div>
+                        <div style="margin-top:4px;">{{ record.patient.age if record.patient.age is not none else 'N/A' }} {{ 'years' if record.patient.age is not none else '' }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Submission Date</div>
+                        <div style="margin-top:4px;">{{ record.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Triage Results -->
+        <div class="card mb-2">
+            <div class="card-header"><h3>🤖 AI Triage Results</h3></div>
+            <div class="card-body">
+                <div class="grid-2">
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Urgency Level</div>
+                        <div style="margin-top:8px;">
+                            {% if record.urgency_level == 'urgent' %}
+                            <span class="badge-urgency badge-urgent" style="font-size:0.85rem;padding:6px 16px;">🔴 URGENT</span>
+                            {% else %}
+                            <span class="badge-urgency badge-non-urgent" style="font-size:0.85rem;padding:6px 16px;">🟢 NON-URGENT</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Predicted Condition</div>
+                        <div style="font-weight:600;font-size:1.05rem;margin-top:8px;color:var(--gray-900);">{{ record.predicted_condition or 'N/A' }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Recommended Specialist</div>
+                        <div style="font-weight:600;margin-top:8px;">{{ record.recommended_specialist or 'General Practitioner' }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Analysis Status</div>
+                        <div style="margin-top:8px;"><span class="badge-status badge-{{ record.analysis_status }}">{{ record.analysis_status }}</span></div>
+                    </div>
+                </div>
+
+                <div style="margin-top:var(--space-lg);">
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;margin-bottom:8px;">Reported Symptoms</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                        {% for s in record.symptoms_list.split(',') if record.symptoms_list %}
+                        <span class="symptom-tag">{{ s.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if record.symptom_details %}
+                <div style="margin-top:var(--space-lg);">
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;margin-bottom:8px;">Additional Details</div>
+                    <p style="color:var(--gray-700);font-size:0.9rem;background:var(--gray-50);padding:var(--space-md);border-radius:var(--radius-sm);">{{ record.symptom_details }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if record.consultation_notes %}
+        <div class="card mb-2">
+            <div class="card-header"><h3>📝 Consultation Notes</h3></div>
+            <div class="card-body">
+                <p style="white-space:pre-wrap;color:var(--gray-700);">{{ record.consultation_notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar: Update Status -->
+    <div>
+        <div class="card" style="position:sticky;top:80px;">
+            <div class="card-header"><h3>⚙️ Update Case</h3></div>
+            <div class="card-body">
+                <form onsubmit="handleUpdateCase(event)">
+                    <div class="form-group">
+                        <label class="form-label">Current Status</label>
+                        <div><span class="badge-status badge-{{ record.case_status }}" style="font-size:0.85rem;padding:6px 14px;">{{ record.case_status }}</span></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="newStatus">Change Status To</label>
+                        <select id="newStatus" class="form-select">
+                            <option value="new" {% if record.case_status == 'new' %}selected{% endif %}>New</option>
+                            <option value="in-review" {% if record.case_status == 'in-review' %}selected{% endif %}>In Review</option>
+                            <option value="consulted" {% if record.case_status == 'consulted' %}selected{% endif %}>Consulted</option>
+                            <option value="closed" {% if record.case_status == 'closed' %}selected{% endif %}>Closed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="notes">Consultation Notes</label>
+                        <textarea id="notes" class="form-textarea" rows="5" placeholder="Enter your consultation notes here...">{{ record.consultation_notes or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" id="updateBtn">
+                        💾 Save Status + Notes
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-block" id="saveNotesBtn" onclick="handleSaveNotes()" style="margin-top:8px;">
+                        📝 Save Notes Only
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function handleUpdateCase(e) {
+        e.preventDefault();
+        const btn = document.getElementById('updateBtn');
+        setLoading(btn, true);
+
+        try {
+            const data = await API.put('/api/doctor/cases/{{ record.id }}/status', {
+                status: document.getElementById('newStatus').value,
+                notes: document.getElementById('notes').value,
+            });
+
+            if (data.success) {
+                Toast.success(data.message);
+                setTimeout(() => location.reload(), 800);
+            }
+        } catch (err) {
+            Toast.error(err.message);
+            setLoading(btn, false);
+        }
+    }
+
+    async function handleSaveNotes() {
+        const btn = document.getElementById('saveNotesBtn');
+        setLoading(btn, true);
+        try {
+            const data = await API.put('/api/doctor/cases/{{ record.id }}/notes', {
+                notes: document.getElementById('notes').value,
+            });
+            if (data.success) {
+                Toast.success(data.message);
+            }
+        } catch (err) {
+            Toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+</script>
+{% endblock %}

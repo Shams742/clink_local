@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}My Appointments{% endblock %}
+{% block page_title %}Appointment Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3>📅 My Appointments</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="{{ url_for('doctor.appointments_page', status='all') }}" class="btn btn-sm {% if status_filter == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+            <a href="{{ url_for('doctor.appointments_page', status='scheduled') }}" class="btn btn-sm {% if status_filter == 'scheduled' %}btn-primary{% else %}btn-secondary{% endif %}">Scheduled</a>
+            <a href="{{ url_for('doctor.appointments_page', status='completed') }}" class="btn btn-sm {% if status_filter == 'completed' %}btn-primary{% else %}btn-secondary{% endif %}">Completed</a>
+            <a href="{{ url_for('doctor.appointments_page', status='cancelled') }}" class="btn btn-sm {% if status_filter == 'cancelled' %}btn-primary{% else %}btn-secondary{% endif %}">Cancelled</a>
+        </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if appointments %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Patient</th>
+                        <th>Status</th>
+                        <th>Update Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr id="appt-row-{{ appt.id }}">
+                        <td>#{{ appt.id }}</td>
+                        <td>{{ appt.date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ appt.time.strftime('%I:%M %p') }}</td>
+                        <td>{{ appt.patient.name if appt.patient else 'N/A' }}</td>
+                        <td id="appt-status-{{ appt.id }}">
+                            <span class="badge-status badge-{{ appt.status }}">{{ appt.status }}</span>
+                        </td>
+                        <td style="display:flex;gap:6px;flex-wrap:wrap;">
+                            {% if appt.status not in ['completed', 'cancelled'] %}
+                            <button class="btn btn-sm btn-primary" onclick="updateStatus({{ appt.id }}, 'completed')">✓ Complete</button>
+                            <button class="btn btn-sm btn-secondary" style="color:var(--red-500);" onclick="updateStatus({{ appt.id }}, 'cancelled')">✕ Cancel</button>
+                            {% else %}
+                            <span style="color:var(--gray-400);font-size:0.85rem;">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <p>No appointments found{% if status_filter != 'all' %} with status <strong>{{ status_filter }}</strong>{% endif %}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function updateStatus(apptId, newStatus) {
+        const label = newStatus === 'completed' ? 'complete' : 'cancel';
+        if (!confirm(`Are you sure you want to ${label} this appointment?`)) return;
+        try {
+            const data = await API.put(`/api/appointment/${apptId}/status`, { status: newStatus });
+            Toast.success(data.message);
+            const statusCell = document.getElementById(`appt-status-${apptId}`);
+            if (statusCell) {
+                statusCell.innerHTML = `<span class="badge-status badge-${newStatus}">${newStatus}</span>`;
+            }
+            // Remove action buttons
+            const row = document.getElementById(`appt-row-${apptId}`);
+            if (row) {
+                const lastCell = row.querySelector('td:last-child');
+                if (lastCell) lastCell.innerHTML = '<span style="color:var(--gray-400);font-size:0.85rem;">—</span>';
+            }
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+</script>
+{% endblock %}

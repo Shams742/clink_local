@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Book Appointment{% endblock %}
+{% block page_title %}Book Appointment{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Record Summary -->
+    <div class="card">
+        <div class="card-header"><h3>📋 Triage Summary</h3></div>
+        <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:var(--space-md);">
+                <div>
+                    <span style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Urgency</span>
+                    <div style="margin-top:4px;">
+                        {% if record.urgency_level == 'urgent' %}
+                        <span class="badge-urgency badge-urgent">🔴 Urgent</span>
+                        {% else %}
+                        <span class="badge-urgency badge-non-urgent">🟢 Non-Urgent</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <span style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Condition</span>
+                    <div style="font-weight:600;color:var(--gray-900);margin-top:4px;">{{ record.predicted_condition or 'N/A' }}</div>
+                </div>
+                <div>
+                    <span style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Recommended Specialist</span>
+                    <div style="font-weight:600;color:var(--gray-900);margin-top:4px;">{{ record.recommended_specialist or 'General Practitioner' }}</div>
+                </div>
+                {% if record.assigned_doctor %}
+                <div>
+                    <span style="font-size:0.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;">Assigned Doctor</span>
+                    <div style="font-weight:600;color:var(--gray-900);margin-top:4px;">Dr. {{ record.assigned_doctor.name }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Slot Selection -->
+    <div class="card">
+        <div class="card-header"><h3>📅 Select a Time Slot</h3></div>
+        <div class="card-body">
+            <div id="slotsLoading" class="text-center" style="padding:var(--space-xl);">
+                <span class="spinner dark" style="width:30px;height:30px;"></span>
+                <p style="color:var(--gray-500);margin-top:var(--space-md);font-size:0.85rem;">Loading available slots...</p>
+            </div>
+            <div id="slotsContainer" class="slots-container" style="display:none;"></div>
+            <div id="slotsEmpty" class="empty-state" style="display:none;">
+                <div class="empty-icon">📅</div>
+                <p>No available slots at this time.</p>
+            </div>
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('patient.triage_result_page', record_id=record.id) }}" class="btn btn-secondary">← Back</a>
+            <button class="btn btn-primary" id="bookBtn" disabled onclick="handleBooking()">
+                Confirm Booking
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const recordId = {{ record.id }};
+    const doctorId = {{ record.doctor_id or 'null' }};
+    const urgency = '{{ record.urgency_level or "non-urgent" }}';
+    let selectedSlot = null;
+
+    async function loadSlots() {
+        if (!doctorId) {
+            document.getElementById('slotsLoading').style.display = 'none';
+            document.getElementById('slotsEmpty').style.display = 'block';
+            document.getElementById('slotsEmpty').querySelector('p').textContent = 'No doctor assigned yet. Please contact support.';
+            return;
+        }
+
+        try {
+            const data = await API.get(`/api/appointment/slots?doctor_id=${doctorId}&urgency=${urgency}`);
+            document.getElementById('slotsLoading').style.display = 'none';
+
+            if (data.slots && data.slots.length > 0) {
+                const container = document.getElementById('slotsContainer');
+                container.style.display = 'grid';
+                container.innerHTML = data.slots.slice(0, 30).map(slot => `
+                    <div class="slot-card" onclick="selectSlot(this, '${slot.date}', '${slot.time}')"
+                         data-date="${slot.date}" data-time="${slot.time}">
+                        <div class="slot-time">${slot.displayTime}</div>
+                        <div class="slot-date">${slot.displayDate}</div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('slotsEmpty').style.display = 'block';
+            }
+        } catch (err) {
+            Toast.error('Failed to load slots: ' + err.message);
+            document.getElementById('slotsLoading').style.display = 'none';
+        }
+    }
+
+    function selectSlot(el, date, time) {
+        document.querySelectorAll('.slot-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedSlot = { date, time };
+        document.getElementById('bookBtn').disabled = false;
+    }
+
+    async function handleBooking() {
+        if (!selectedSlot) return;
+
+        const btn = document.getElementById('bookBtn');
+        setLoading(btn, true);
+
+        try {
+            const data = await API.post('/api/appointment/book', {
+                doctorId: doctorId,
+                recordId: recordId,
+                date: selectedSlot.date,
+                time: selectedSlot.time,
+            });
+
+            if (data.success) {
+                Toast.success(data.message);
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("patient.dashboard") }}';
+                }, 1000);
+            }
+        } catch (err) {
+            Toast.error(err.message);
+            setLoading(btn, false);
+        }
+    }
+
+    // Load slots on page load
+    loadSlots();
+</script>
+{% endblock %}

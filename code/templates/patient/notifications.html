@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-sm btn-secondary" onclick="markAllRead()">✓ Mark All Read</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if notifications %}
+        <ul class="notification-list">
+            {% for notif in notifications %}
+            <li class="notification-item {% if not notif.is_read %}unread{% endif %}"
+                onclick="markRead({{ notif.id }}, this)">
+                <div class="notif-icon">
+                    {% if notif.notification_type == 'appointment_confirmed' %}📅
+                    {% elif notif.notification_type == 'appointment_updated' %}🔄
+                    {% elif notif.notification_type == 'case_update' %}📋
+                    {% else %}🔔{% endif %}
+                </div>
+                <div class="notif-content">
+                    <div class="notif-message">{{ notif.message }}</div>
+                    <div class="notif-time">{{ notif.timestamp.strftime('%b %d, %Y at %I:%M %p') if notif.timestamp else '' }}</div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">🔔</div>
+            <p>No notifications yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function markRead(id, el) {
+        if (!el.classList.contains('unread')) return;
+        try {
+            await API.put(`/api/patient/notifications/${id}/read`);
+            el.classList.remove('unread');
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function markAllRead() {
+        try {
+            await API.put('/api/patient/notifications/read-all');
+            document.querySelectorAll('.notification-item.unread').forEach(el => {
+                el.classList.remove('unread');
+            });
+            Toast.success('All notifications marked as read.');
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    }
+</script>
+{% endblock %}

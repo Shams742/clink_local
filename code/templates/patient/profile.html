@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-header">
+        <h3>👤 Edit Profile Information</h3>
+    </div>
+    <div class="card-body">
+        <form id="profileForm" onsubmit="handleUpdateProfile(event)">
+            <div class="form-group mb-2">
+                <label class="form-label" for="name">Full Name</label>
+                <input type="text" id="name" class="form-input" value="{{ current_user.name }}" required>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" class="form-input" value="{{ current_user.email }}" disabled style="background-color: var(--gray-50); cursor: not-allowed;">
+                <span style="font-size: 0.75rem; color: var(--gray-500);">Email address cannot be changed.</span>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="form-label" for="phone">Phone Number</label>
+                <input type="text" id="phone" class="form-input" value="{{ current_user.phone }}" required>
+            </div>
+
+            <div class="form-row" style="margin-bottom: var(--space-sm);">
+                <div class="form-group mb-2">
+                    <label class="form-label" for="gender">Gender</label>
+                    <select id="gender" class="form-input">
+                        <option value="" disabled>Select gender</option>
+                        <option value="Male" {% if current_user.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if current_user.gender == 'Female' %}selected{% endif %}>Female</option>
+                    </select>
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label" for="dob">Date of Birth</label>
+                    <input type="date" id="dob" class="form-input" value="{{ current_user.dob.isoformat() if current_user.dob else '' }}">
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--gray-100); margin: var(--space-lg) 0;">
+            <h4 style="margin-bottom: var(--space-md); color: var(--gray-700);">Change Password (Optional)</h4>
+
+            <div class="form-group mb-2">
+                <label class="form-label" for="new_password">New Password</label>
+                <input type="password" id="new_password" class="form-input" placeholder="Leave blank to keep current password">
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="form-label" for="confirm_password">Confirm New Password</label>
+                <input type="password" id="confirm_password" class="form-input" placeholder="Confirm new password">
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--gray-100); margin: var(--space-lg) 0;">
+            <h4 style="margin-bottom: var(--space-md); color: var(--gray-700); border-left: 3px solid var(--primary-500); padding-left: 8px;">Authorization Required</h4>
+
+            <div class="form-group mb-3">
+                <label class="form-label" for="current_password" style="font-weight: 600;">Current Password</label>
+                <input type="password" id="current_password" class="form-input" placeholder="Enter current password to save changes" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="saveProfileBtn">
+                💾 Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Set max date for DoB to today
+    document.getElementById('dob').max = new Date().toISOString().split('T')[0];
+
+    async function handleUpdateProfile(e) {
+        e.preventDefault();
+        
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (newPassword && newPassword !== confirmPassword) {
+            Toast.error('New passwords do not match.');
+            return;
+        }
+        
+        const btn = document.getElementById('saveProfileBtn');
+        setLoading(btn, true);
+        
+        try {
+            const data = await API.put('/api/patient/profile', {
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                gender: document.getElementById('gender').value,
+                dob: document.getElementById('dob').value,
+                new_password: newPassword || null,
+                current_password: document.getElementById('current_password').value
+            });
+            
+            if (data.success) {
+                Toast.success(data.message);
+                document.getElementById('new_password').value = '';
+                document.getElementById('confirm_password').value = '';
+                document.getElementById('current_password').value = '';
+                
+                // Update username in sidebar if changed
+                const sidebarName = document.querySelector('.sidebar-user .user-name');
+                if (sidebarName) {
+                    sidebarName.textContent = data.patient.name;
+                }
+                const avatar = document.querySelector('.sidebar-user .avatar');
+                if (avatar && data.patient.name) {
+                    avatar.textContent = data.patient.name[0].toUpperCase();
+                }
+            }
+        } catch (err) {
+            Toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+</script>
+{% endblock %}
+

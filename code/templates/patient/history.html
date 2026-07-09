@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Medical History{% endblock %}
+{% block page_title %}Medical History{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('patient.submit_symptoms_page') }}" class="btn btn-primary">🩺 Submit Symptoms</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-2">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3>📜 Past Symptom Submissions</h3>
+        
+        <!-- Filters -->
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <span style="font-size: 0.85rem; color: var(--gray-600); margin-right: 5px;">Urgency:</span>
+                <a href="{{ url_for('patient.history_page', urgency='all', sort=sort) }}" class="btn btn-sm {% if urgency == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">All</a>
+                <a href="{{ url_for('patient.history_page', urgency='urgent', sort=sort) }}" class="btn btn-sm {% if urgency == 'urgent' %}btn-primary{% else %}btn-secondary{% endif %}">🔴 Urgent</a>
+                <a href="{{ url_for('patient.history_page', urgency='non-urgent', sort=sort) }}" class="btn btn-sm {% if urgency == 'non-urgent' %}btn-primary{% else %}btn-secondary{% endif %}">🟢 Non-Urgent</a>
+            </div>
+            
+            <div>
+                <span style="font-size: 0.85rem; color: var(--gray-600); margin-right: 5px;">Sort Date:</span>
+                <a href="{{ url_for('patient.history_page', urgency=urgency, sort='desc') }}" class="btn btn-sm {% if sort == 'desc' %}btn-primary{% else %}btn-secondary{% endif %}">Newest</a>
+                <a href="{{ url_for('patient.history_page', urgency=urgency, sort='asc') }}" class="btn btn-sm {% if sort == 'asc' %}btn-primary{% else %}btn-secondary{% endif %}">Oldest</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body" style="padding: 0;">
+        {% if records %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Submission Date</th>
+                        <th>Symptoms & Details</th>
+                        <th>Urgency</th>
+                        <th>Specialist</th>
+                        <th>Case Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>#{{ record.id }}</td>
+                        <td>{{ record.created_at.strftime('%b %d, %Y at %I:%M %p') }}</td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ record.symptom_details }}">
+                            {{ record.symptom_details[:80] }}{% if record.symptom_details|length > 80 %}...{% endif %}
+                        </td>
+                        <td>
+                            {% if record.urgency_level == 'urgent' %}
+                            <span class="badge-urgency badge-urgent">🔴 Urgent</span>
+                            {% elif record.urgency_level %}
+                            <span class="badge-urgency badge-non-urgent">🟢 Non-Urgent</span>
+                            {% else %}
+                            <span class="badge-status badge-new">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ record.recommended_specialist or '—' }}</td>
+                        <td><span class="badge-status badge-{{ record.case_status }}">{{ record.case_status }}</span></td>
+                        <td>
+                            <a href="{{ url_for('patient.triage_result_page', record_id=record.id) }}" class="btn btn-sm btn-secondary">View Result</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📜</div>
+            <p>No records found matching the filters.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
