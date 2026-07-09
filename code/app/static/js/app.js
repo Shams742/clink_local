@@ -15,6 +15,17 @@ const API = {
 
         try {
             const response = await fetch(url, config);
+
+            if (response.status === 401) {
+                window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Session expired. Redirecting to login...');
+            }
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error(`Unexpected response from server (status ${response.status}). Please try again.`);
+            }
+
             const data = await response.json();
 
             if (!response.ok) {

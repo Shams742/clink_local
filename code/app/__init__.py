@@ -31,6 +31,17 @@ def create_app(config_name=None):
         from app.services.auth_service import AuthService
         return AuthService.get_user_by_id(user_id)
 
+    # Unauthenticated/expired-session requests to /api/* must get a JSON 401,
+    # not Flask-Login's default HTML redirect to the login page — otherwise
+    # the frontend's response.json() throws a cryptic "Unexpected token '<'"
+    # instead of a clear "please log in again" message.
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        from flask import request, jsonify, redirect, url_for
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Your session has expired. Please log in again.'}), 401
+        return redirect(url_for('auth.login_page', next=request.path))
+
     # Register blueprints
     from app.controllers.auth_controller import auth_bp
     from app.controllers.patient_controller import patient_bp
