@@ -64,23 +64,22 @@ class AppointmentService:
         slots = []
         current_date = start_date
         while current_date <= end_date:
-            # Skip weekends
-            if current_date.weekday() < 5:  # Monday to Friday
-                hour = slot_start
-                minute = 0
-                while hour < slot_end:
-                    slot_time = time(hour, minute)
-                    if (current_date, slot_time) not in booked_slots:
-                        slots.append({
-                            'date': current_date.isoformat(),
-                            'time': slot_time.strftime('%H:%M'),
-                            'displayDate': current_date.strftime('%A, %B %d, %Y'),
-                            'displayTime': slot_time.strftime('%I:%M %p'),
-                        })
-                    minute += cls.SLOT_DURATION
-                    if minute >= 60:
-                        hour += 1
-                        minute = 0
+            # Allow booking 7 days a week
+            hour = slot_start
+            minute = 0
+            while hour < slot_end:
+                slot_time = time(hour, minute)
+                if (current_date, slot_time) not in booked_slots:
+                    slots.append({
+                        'date': current_date.isoformat(),
+                        'time': slot_time.strftime('%H:%M'),
+                        'displayDate': current_date.strftime('%A, %B %d, %Y'),
+                        'displayTime': slot_time.strftime('%I:%M %p'),
+                    })
+                minute += cls.SLOT_DURATION
+                if minute >= 60:
+                    hour += 1
+                    minute = 0
             current_date += timedelta(days=1)
 
         return slots
